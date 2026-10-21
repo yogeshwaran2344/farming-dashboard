@@ -1,0 +1,4 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.6.0
+sqlite3-to-mysql>=2.1.0; extra == "optional"
