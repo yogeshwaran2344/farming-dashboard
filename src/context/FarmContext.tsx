@@ -31,6 +31,9 @@ import { evaluateIrrigationRule } from '../utils/ruleEngine';
 import { validateSensorReading } from '../utils/validator';
 import { getTranslation } from '../utils/translations';
 
+// Configurable API base for cloud deployment (e.g. Render / Cloud Run)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
 // Strict deduplication: maintains uniquely identified time-series without duplicated timestamps
 export function deduplicateAndSortReadings(readings: SensorReading[]): SensorReading[] {
   const map = new Map<string, SensorReading>();
@@ -332,7 +335,7 @@ export const FarmProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Hardware & Polling Settings
   const [hardwareSettings, setHardwareSettings] = useState<HardwareSettings>({
     mode: 'live',
-    apiEndpoint: '/api/readings/latest',
+    apiEndpoint: `${API_BASE}/api/readings/latest`,
     apiKey: 'agr-esp32-key-live',
     pollIntervalSeconds: 3,
     connectionStatus: 'listening',
@@ -418,7 +421,7 @@ export const FarmProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Post to FastAPI backend if available
     try {
-      await fetch('/api/telemetry', {
+      await fetch(`${API_BASE}/api/telemetry`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -490,7 +493,7 @@ export const FarmProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     try {
-      await fetch('/api/telemetry', {
+      await fetch(`${API_BASE}/api/telemetry`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -534,7 +537,7 @@ export const FarmProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const pollBackend = async () => {
       try {
-        const res = await fetch('/api/readings/latest');
+        const res = await fetch(`${API_BASE}/api/readings/latest`);
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
@@ -626,7 +629,7 @@ export const FarmProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Actions
   const refreshData = async () => {
     try {
-      const res = await fetch('/api/readings/latest');
+      const res = await fetch(`${API_BASE}/api/readings/latest`);
       if (res.ok) {
         const incoming: SensorReading[] = await res.json();
         if (Array.isArray(incoming)) {

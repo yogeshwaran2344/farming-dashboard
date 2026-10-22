@@ -5,12 +5,20 @@ Strictly Real-Time Ingestion with Automatic Telemetry Deduplication
 
 import sqlite3
 import datetime
+import os
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-DB_FILE = "farmsense.db"
+# Locate database and frontend static build directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(BASE_DIR, "farmsense.db")
+DIST_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "dist"))
+if not os.path.exists(DIST_DIR):
+    DIST_DIR = os.path.abspath(os.path.join(BASE_DIR, "dist"))
 
 app = FastAPI(
     title="FarmSense Real-Time Telemetry API",
@@ -78,6 +86,9 @@ class TelemetryPayload(BaseModel):
 
 @app.get("/")
 def read_root():
+    index_file = os.path.join(DIST_DIR, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
     return {
         "service": "FarmSense Real-Time Agriculture Backend",
         "status": "online",
@@ -250,6 +261,28 @@ def get_reading_history(
         })
     return results
 
+# Serve static frontend assets and SPA routes if dist directory is present
+if os.path.exists(DIST_DIR):
+    assets_dir = os.path.join(DIST_DIR, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend_spa(full_path: str):
+        # Do not intercept API or documentation routes
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            raise HTTPException(status_code=404, detail="Endpoint not found")
+        
+        file_path = os.path.join(DIST_DIR, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        
+        index_file = os.path.join(DIST_DIR, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Page not found")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
